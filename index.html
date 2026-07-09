@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Calendar Prototype - スマート予定抽出カレンダー</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo-area">
+        <i data-lucide="calendar-heart" class="logo-icon"></i>
+        <h1>AI Calendar <span class="badge">Prot</span></h1>
+      </div>
+      <div class="header-actions">
+        <button id="btn-api-settings" class="btn btn-secondary">
+          <i data-lucide="key"></i>
+          <span>API設定</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="app-main">
+      <!-- Left Column: Calendar -->
+      <section class="card calendar-card">
+        <div class="calendar-header">
+          <h2 id="calendar-month-year">2026年7月</h2>
+          <div class="calendar-nav">
+            <button id="btn-prev-month" class="btn-icon" title="前月"><i data-lucide="chevron-left"></i></button>
+            <button id="btn-today" class="btn btn-sm btn-outline">今日</button>
+            <button id="btn-next-month" class="btn-icon" title="翌月"><i data-lucide="chevron-right"></i></button>
+          </div>
+        </div>
+        
+        <!-- Weekdays -->
+        <div class="weekdays">
+          <div class="weekday sun">日</div>
+          <div class="weekday">月</div>
+          <div class="weekday">火</div>
+          <div class="weekday">水</div>
+          <div class="weekday">木</div>
+          <div class="weekday">金</div>
+          <div class="weekday sat">土</div>
+        </div>
+
+        <!-- Days Grid -->
+        <div id="calendar-days" class="calendar-days">
+          <!-- Dynamically populated -->
+        </div>
+      </section>
+
+      <!-- Right Column: Daily Schedule & Actions -->
+      <section class="right-panel">
+        <!-- Selected Date Schedule -->
+        <div class="card schedule-card">
+          <div class="card-header">
+            <div class="title-with-subtitle">
+              <span class="card-subtitle">SCHEDULE</span>
+              <h3 id="selected-date-title">7月9日(木)の予定</h3>
+            </div>
+            <button id="btn-add-schedule" class="btn btn-primary btn-sm">
+              <i data-lucide="plus"></i>
+              <span>予定を追加</span>
+            </button>
+          </div>
+          
+          <div id="schedule-list" class="schedule-list">
+            <!-- Dynamically populated -->
+            <div class="empty-state">
+              <i data-lucide="calendar-range"></i>
+              <p>この日の予定はありません</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Smart Analyzer Dropzone -->
+        <div class="card analyzer-card">
+          <div class="card-header">
+            <div class="title-with-subtitle">
+              <span class="card-subtitle">AI SMART ADD</span>
+              <h3>スクショから予定を追加</h3>
+            </div>
+          </div>
+          
+          <div id="dropzone" class="dropzone">
+            <input type="file" id="file-input" accept="image/*" style="display: none;">
+            <div class="dropzone-content">
+              <div class="icon-pulse">
+                <i data-lucide="image-plus" class="drop-icon"></i>
+              </div>
+              <h4>メールやLINEのスクショをドロップ</h4>
+              <p>またはファイルを選択してください</p>
+              <button type="button" class="btn btn-outline btn-sm btn-browse" onclick="document.getElementById('file-input').click()">
+                ファイルを選択
+              </button>
+            </div>
+            <div id="preview-container" class="preview-container" style="display: none;">
+              <img id="image-preview" src="" alt="アップロードされた画像">
+              <div class="preview-overlay">
+                <button type="button" id="btn-clear-image" class="btn-icon btn-danger-icon" title="画像を解除">
+                  <i data-lucide="trash-2"></i>
+                </button>
+                <button type="button" id="btn-analyze-image" class="btn btn-glow">
+                  <i data-lucide="sparkles"></i>
+                  <span>AIで予定を読み取る</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal: API Settings -->
+  <div id="modal-api-settings" class="modal">
+    <div class="modal-content glass">
+      <div class="modal-header">
+        <h3><i data-lucide="settings" class="icon-inline"></i> API設定</h3>
+        <button class="btn-icon modal-close"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <p class="description-text">
+          メールやLINEのスクリーンショットから自動で予定を抽出するために、Google AI StudioのGemini APIを使用します。
+        </p>
+        <div class="form-group">
+          <label for="input-api-key">Gemini API Key</label>
+          <div class="input-with-icon">
+            <i data-lucide="key" class="input-icon"></i>
+            <input type="password" id="input-api-key" placeholder="AIzaSy...">
+          </div>
+          <span class="help-text">
+            キーはブラウザのLocalStorageにのみ保存され、直接GoogleのAPIと通信します。<br>
+            キーがない場合は、モック（模擬）データを使用して機能をお試しいただけます。
+          </span>
+        </div>
+        
+        <div class="toggle-group">
+          <div class="toggle-label">
+            <span class="toggle-title">デモモード（モック動作）</span>
+            <span class="toggle-desc">APIキーなしで模擬的な画像解析テストを行います</span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="checkbox-demo-mode">
+            <span class="slider round"></span>
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <a href="https://aistudio.google.com/" target="_blank" rel="noopener noreferrer" class="btn btn-link">
+          <i data-lucide="external-link"></i> APIキーを取得する
+        </a>
+        <button id="btn-save-api" class="btn btn-primary">保存する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Add Schedule Form (Manual) -->
+  <div id="modal-add-schedule" class="modal">
+    <div class="modal-content glass">
+      <div class="modal-header">
+        <h3><i data-lucide="calendar-plus" class="icon-inline"></i> 予定を手動で追加</h3>
+        <button class="btn-icon modal-close"><i data-lucide="x"></i></button>
+      </div>
+      <form id="form-manual-schedule">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="schedule-title">タイトル <span class="required">*</span></label>
+            <input type="text" id="schedule-title" required placeholder="例: 総合科学特論の講義">
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="schedule-date">日付 <span class="required">*</span></label>
+              <input type="date" id="schedule-date" required>
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="schedule-start-time">開始時間</label>
+              <input type="time" id="schedule-start-time">
+            </div>
+            <div class="form-group">
+              <label for="schedule-end-time">終了時間</label>
+              <input type="time" id="schedule-end-time">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="schedule-description">詳細・メモ</label>
+            <textarea id="schedule-description" rows="3" placeholder="場所や持ち物など"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline modal-close">キャンセル</button>
+          <button type="submit" class="btn btn-primary">追加する</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: AI Analysis Result Confirmation -->
+  <div id="modal-analysis-result" class="modal">
+    <div class="modal-content glass max-w-lg">
+      <div class="modal-header">
+        <h3 class="success-title"><i data-lucide="sparkles" class="icon-inline"></i> AI解析結果の確認</h3>
+        <button class="btn-icon modal-close"><i data-lucide="x"></i></button>
+      </div>
+      <form id="form-confirm-analysis">
+        <div class="modal-body">
+          <p class="analysis-intro-text">
+            スクリーンショットから以下の予定が検出されました。内容を確認・編集し、カレンダーに追加してください。
+          </p>
+          
+          <div class="form-group">
+            <label for="analysis-title">タイトル <span class="required">*</span></label>
+            <input type="text" id="analysis-title" required>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="analysis-date">日付 <span class="required">*</span></label>
+              <input type="date" id="analysis-date" required>
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="analysis-start-time">開始時間</label>
+              <input type="time" id="analysis-start-time">
+            </div>
+            <div class="form-group">
+              <label for="analysis-end-time">終了時間</label>
+              <input type="time" id="analysis-end-time">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="analysis-description">詳細・メモ</label>
+            <textarea id="analysis-description" rows="4"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline modal-close">キャンセル</button>
+          <button type="submit" class="btn btn-glow">カレンダーに追加する</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Global Loader -->
+  <div id="global-loader" class="loader-overlay" style="display: none;">
+    <div class="loader-content">
+      <div class="spinner-circle"></div>
+      <p id="loader-message">AIが画像を解析中...</p>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast" style="display: none;">
+    <i data-lucide="check-circle" id="toast-icon"></i>
+    <span id="toast-message">予定を追加しました！</span>
+  </div>
+
+  <!-- Main Logic Script -->
+  <script src="app.js"></script>
+</body>
+</html>
