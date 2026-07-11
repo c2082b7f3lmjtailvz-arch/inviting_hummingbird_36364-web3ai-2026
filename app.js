@@ -38,6 +38,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnExport = document.getElementById('btn-export');
   const btnImport = document.getElementById('btn-import');
   const importFileInput = document.getElementById('import-file-input');
+  const modalIoScope = document.getElementById('modal-io-scope');
+  const ioScopeTitle = document.getElementById('io-scope-title');
+  const btnIoScopeConfirm = document.getElementById('btn-io-scope-confirm');
 
   // Tab Navigation
   const tabButtons = document.querySelectorAll('.tab-btn');
@@ -406,13 +409,57 @@ document.addEventListener('DOMContentLoaded', () => {
     return Object.values(obj).every(v => Array.isArray(v));
   }
 
+  function scopeLabel(scope) {
+    if (scope === 'schedules') return '予定';
+    if (scope === 'expenses') return '出納帳';
+    return '予定と出納帳';
+  }
+
+  // エクスポート/インポート共通：対象範囲(予定だけ・出納帳だけ・両方)を選ぶモーダル
+  let ioMode = null; // 'export' | 'import'
+  let pendingImportScope = null;
+
   btnExport.addEventListener('click', () => {
+    ioMode = 'export';
+    ioScopeTitle.innerHTML = '<i data-lucide="download" class="icon-inline"></i> エクスポートする内容を選択';
+    btnIoScopeConfirm.textContent = 'エクスポート';
+    openModal(modalIoScope);
+    lucide.createIcons();
+  });
+
+  btnImport.addEventListener('click', () => {
+    ioMode = 'import';
+    ioScopeTitle.innerHTML = '<i data-lucide="upload" class="icon-inline"></i> インポートする内容を選択';
+    btnIoScopeConfirm.textContent = 'ファイルを選択';
+    openModal(modalIoScope);
+    lucide.createIcons();
+  });
+
+  btnIoScopeConfirm.addEventListener('click', () => {
+    const scope = document.querySelector('input[name="io-scope"]:checked').value;
+    closeModal(modalIoScope);
+
+    if (ioMode === 'export') {
+      performExport(scope);
+    } else {
+      pendingImportScope = scope;
+      importFileInput.click();
+    }
+  });
+
+  function performExport(scope) {
     const exportData = {
       app: 'ai-calendar-prototype',
-      version: 1,
-      exportedAt: new Date().toISOString(),
-      schedules
+      version: 2,
+      exportedAt: new Date().toISOString()
     };
+
+    if (scope === 'schedules' || scope === 'both') {
+      exportData.schedules = schedules;
+    }
+    if (scope === 'expenses' || scope === 'both') {
+      exportData.expenses = expenses;
+    }
 
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -424,56 +471,90 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    showToast('予定をエクスポートしました', 'success');
-  });
-
-  btnImport.addEventListener('click', () => {
-    importFileInput.click();
-  });
+    showToast(`${scopeLabel(scope)}をエクスポートしました`, 'success');
+  }
 
   importFileInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
+    const scope = pendingImportScope || 'both';
+    const wantSchedules = scope === 'schedules' || scope === 'both';
+    const wantExpenses = scope === 'expenses' || scope === 'both';
+
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
         const parsed = JSON.parse(ev.target.result);
-        const importedSchedules = (parsed && typeof parsed.schedules === 'object' && parsed.schedules !== null)
-          ? parsed.schedules
-          : parsed;
 
-        if (!isValidSchedulesShape(importedSchedules)) {
-          throw new Error('ファイルの形式が正しくありません');
-        }
+        let importedSchedules = null;
+        let importedExpenses = null;
+        let scheduleCount = 0;
+        let expenseCount = 0;
 
-        const eventCount = Object.values(importedSchedules).reduce((sum, arr) => sum + arr.length, 0);
-
-        if (eventCount === 0) {
-          showToast('ファイルに予定が含まれていません', 'error');
-          return;
-        }
-
-        if (!confirm(`${eventCount}件の予定を現在のカレンダーに追加します（既存の予定は削除されません）。よろしいですか？`)) {
-          return;
-        }
-
-        Object.keys(importedSchedules).forEach(dateStr => {
-          if (!schedules[dateStr]) {
-            schedules[dateStr] = [];
+        if (wantSchedules) {
+          const raw = (parsed && typeof parsed.schedules === 'object' && parsed.schedules !== null)
+            ? parsed.schedules
+            : (scope === 'schedules' ? parsed : null); // 旧形式（予定のみのファイル）との互換
+          if (raw && isValidSchedulesShape(raw)) {
+            importedSchedules = raw;
+            scheduleCount = Object.values(raw).reduce((sum, arr) => sum + arr.length, 0);
           }
-          schedules[dateStr].push(...importedSchedules[dateStr]);
-        });
+        }
 
-        saveSchedules();
+        if (wantExpenses) {
+          const raw = (parsed && typeof parsed.expenses === 'object' && parsed.expenses !== null)
+            ? parsed.expenses
+            : null;
+          if (raw && isValidSchedulesShape(raw)) {
+            importedExpenses = raw;
+            expenseCount = Object.values(raw).reduce((sum, arr) => sum + arr.length, 0);
+          }
+        }
+
+        if (!importedSchedules && !importedExpenses) {
+          throw new Error('選択した内容がファイルに含まれていません');
+        }
+
+        const parts = [];
+        if (importedSchedules) parts.push(`予定${scheduleCount}件`);
+        if (importedExpenses) parts.push(`支出${expenseCount}件`);
+
+        if (!confirm(`${parts.join('、')}を現在のデータに追加します（既存のデータは削除されません）。よろしいですか？`)) {
+          return;
+        }
+
+        if (importedSchedules) {
+          Object.keys(importedSchedules).forEach(dateStr => {
+            if (!schedules[dateStr]) {
+              schedules[dateStr] = [];
+            }
+            schedules[dateStr].push(...importedSchedules[dateStr]);
+          });
+          saveSchedules();
+        }
+
+        if (importedExpenses) {
+          Object.keys(importedExpenses).forEach(dateStr => {
+            if (!expenses[dateStr]) {
+              expenses[dateStr] = [];
+            }
+            expenses[dateStr].push(...importedExpenses[dateStr]);
+          });
+          saveExpenses();
+        }
+
         renderCalendar();
         renderScheduleList();
-        showToast(`${eventCount}件の予定をインポートしました！`, 'success');
+        refreshCashBookViews();
+
+        showToast(`${parts.join('、')}をインポートしました！`, 'success');
       } catch (err) {
         console.error(err);
         showToast(`インポートに失敗しました: ${err.message}`, 'error');
       } finally {
         importFileInput.value = '';
+        pendingImportScope = null;
       }
     };
     reader.readAsText(file);

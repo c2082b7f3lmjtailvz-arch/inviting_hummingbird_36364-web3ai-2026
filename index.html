@@ -260,6 +260,36 @@
     </div>
   </div>
 
+  <!-- Modal: Export/Import Scope Selection -->
+  <div id="modal-io-scope" class="modal">
+    <div class="modal-content glass">
+      <div class="modal-header">
+        <h3 id="io-scope-title"><i data-lucide="download" class="icon-inline"></i> エクスポートする内容を選択</h3>
+        <button class="btn-icon modal-close"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="io-scope-options">
+          <label class="io-scope-option">
+            <input type="radio" name="io-scope" value="schedules" checked>
+            <span>予定だけ</span>
+          </label>
+          <label class="io-scope-option">
+            <input type="radio" name="io-scope" value="expenses">
+            <span>出納帳だけ</span>
+          </label>
+          <label class="io-scope-option">
+            <input type="radio" name="io-scope" value="both">
+            <span>両方</span>
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline modal-close">キャンセル</button>
+        <button id="btn-io-scope-confirm" class="btn btn-primary">エクスポート</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal: Add Schedule Form (Manual) -->
   <div id="modal-add-schedule" class="modal">
     <div class="modal-content glass">
