@@ -566,15 +566,34 @@ document.addEventListener('DOMContentLoaded', () => {
         const mockDate = new Date();
         mockDate.setDate(mockDate.getDate() + 7);
         const mockDateStr = getFormattedDate(mockDate);
-        
-        const mockResult = {
-          title: 'web3・AI概論の最終成果物発表会',
-          date: mockDateStr,
-          startTime: '13:00',
-          endTime: '14:30',
-          description: '場所：3号館4階講義室\n持ち物：PC、プレゼン資料\n※スクリーンショットから自動抽出されたデモ予定です。'
-        };
-        
+        const mockDate2 = new Date(mockDate);
+        mockDate2.setDate(mockDate2.getDate() + 1);
+        const mockDateStr2 = getFormattedDate(mockDate2);
+
+        const mockCampEndDate = new Date(mockDate2);
+        mockCampEndDate.setDate(mockCampEndDate.getDate() + 2);
+        const mockCampEndDateStr = getFormattedDate(mockCampEndDate);
+
+        // 複数予定の検出デモ（1枚のスクショに複数の予定が写っているケース、うち1件は複数日の合宿）
+        const mockResult = [
+          {
+            title: 'web3・AI概論の最終成果物発表会',
+            date: mockDateStr,
+            endDate: null,
+            startTime: '13:00',
+            endTime: '14:30',
+            description: '場所：3号館4階講義室\n持ち物：PC、プレゼン資料\n※スクリーンショットから自動抽出されたデモ予定です。'
+          },
+          {
+            title: '研究室合宿',
+            date: mockDateStr2,
+            endDate: mockCampEndDateStr,
+            startTime: '10:00',
+            endTime: null,
+            description: '場所：〇〇セミナーハウス\n※複数日の予定検出のデモ用データです。'
+          }
+        ];
+
         showAnalysisConfirmation(mockResult);
         showToast('デモモードで解析結果を出力しました', 'success');
       } else {
@@ -585,18 +604,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const todayStr = getFormattedDate(new Date());
         
         const prompt = `この画像はメールまたはLINEのスケジュール連絡のスクリーンショットです。
-この画像から「予定のタイトル」「日付（YYYY-MM-DDフォーマット）」「開始時間（HH:MM）」「終了時間（HH:MM、なければnull）」「詳細（場所やその他の情報）」を抽出して、必ず指定されたJSONフォーマットのみで出力してください。
+この画像に含まれる予定をすべて抽出してください。1件の場合も、複数件の場合も、必ずJSON配列で出力してください。
+各予定について「予定のタイトル」「開始日（YYYY-MM-DDフォーマット）」「終了日（複数日にわたる予定の場合。YYYY-MM-DDフォーマット、単日の予定ならnull）」「開始時間（HH:MM）」「終了時間（HH:MM、なければnull）」「詳細（場所やその他の情報）」を抽出し、指定されたJSONフォーマットのみで出力してください。
+
+合宿・旅行・研修など「7/20〜7/22」「7月20日から22日まで」のように連続する複数日にわたる予定は、開始日をdate、最終日をendDateに設定してください。単日の予定の場合はendDateを必ずnullにしてください。
 
 基準日（今日の日付）は ${todayStr} です。もし画像内の「木曜日」「来週の火曜」「7/12」といった表現から年が特定できない場合、この基準日を元に最も整合性のある日付を推測して割り当ててください。
 
-JSONスキーマ:
-{
-  "title": "予定タイトル",
-  "date": "YYYY-MM-DD",
-  "startTime": "HH:MM" | null,
-  "endTime": "HH:MM" | null,
-  "description": "場所や持ち物、追加情報など"
-}`;
+JSONスキーマ（配列。予定が1件のみでも要素1件の配列にすること）:
+[
+  {
+    "title": "予定タイトル",
+    "date": "YYYY-MM-DD",
+    "endDate": "YYYY-MM-DD" | null,
+    "startTime": "HH:MM" | null,
+    "endTime": "HH:MM" | null,
+    "description": "場所や持ち物、追加情報など"
+  }
+]`;
 
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`, {
           method: 'POST',
@@ -647,53 +672,175 @@ JSONスキーマ:
     }
   });
   
+  const analysisItemsContainer = document.getElementById('analysis-items-container');
+
   function showAnalysisConfirmation(data) {
-    document.getElementById('analysis-title').value = data.title || '';
-    document.getElementById('analysis-date').value = data.date || getFormattedDate(new Date());
-    document.getElementById('analysis-start-time').value = data.startTime || '';
-    document.getElementById('analysis-end-time').value = data.endTime || '';
-    document.getElementById('analysis-description').value = data.description || '';
-    
+    // 単一オブジェクト・配列どちらで来ても配列として扱う
+    const items = Array.isArray(data) ? data : [data];
+
+    analysisItemsContainer.innerHTML = '';
+
+    items.forEach((item, idx) => {
+      const card = document.createElement('div');
+      card.className = 'analysis-item';
+      card.innerHTML = `
+        <div class="analysis-item-header">
+          <span class="analysis-item-badge">予定 ${idx + 1}</span>
+          ${items.length > 1 ? '<button type="button" class="btn-icon btn-danger-icon btn-remove-analysis-item" title="この予定を除外"><i data-lucide="x"></i></button>' : ''}
+        </div>
+        <div class="form-group">
+          <label>タイトル <span class="required">*</span></label>
+          <input type="text" class="analysis-title" required>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>開始日 <span class="required">*</span></label>
+            <input type="date" class="analysis-date" required>
+          </div>
+          <div class="form-group">
+            <label>終了日（複数日の場合）</label>
+            <input type="date" class="analysis-end-date">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>開始時間</label>
+            <input type="time" class="analysis-start-time">
+          </div>
+          <div class="form-group">
+            <label>終了時間</label>
+            <input type="time" class="analysis-end-time">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>詳細・メモ</label>
+          <textarea class="analysis-description" rows="3"></textarea>
+        </div>
+      `;
+
+      card.querySelector('.analysis-title').value = item.title || '';
+      card.querySelector('.analysis-date').value = item.date || getFormattedDate(new Date());
+      card.querySelector('.analysis-end-date').value = (item.endDate && item.endDate !== item.date) ? item.endDate : '';
+      card.querySelector('.analysis-start-time').value = item.startTime || '';
+      card.querySelector('.analysis-end-time').value = item.endTime || '';
+      card.querySelector('.analysis-description').value = item.description || '';
+
+      const removeBtn = card.querySelector('.btn-remove-analysis-item');
+      if (removeBtn) {
+        removeBtn.addEventListener('click', () => card.remove());
+      }
+
+      analysisItemsContainer.appendChild(card);
+    });
+
+    lucide.createIcons();
     openModal(modalAnalysisResult);
   }
-  
+
   // AI解析結果の確認・登録
   formConfirmAnalysis.addEventListener('submit', (e) => {
     e.preventDefault();
-    
-    const title = document.getElementById('analysis-title').value.trim();
-    const dateStr = document.getElementById('analysis-date').value;
-    const startTime = document.getElementById('analysis-start-time').value;
-    const endTime = document.getElementById('analysis-end-time').value;
-    const description = document.getElementById('analysis-description').value.trim();
-    
-    if (!title || !dateStr) return;
-    
-    const newEvent = {
-      id: Date.now().toString(),
-      title,
-      startTime: startTime || null,
-      endTime: endTime || null,
-      description: description || null
-    };
-    
-    if (!schedules[dateStr]) {
-      schedules[dateStr] = [];
+
+    const cards = analysisItemsContainer.querySelectorAll('.analysis-item');
+
+    if (cards.length === 0) {
+      showToast('追加する予定がありません', 'error');
+      return;
     }
-    
-    schedules[dateStr].push(newEvent);
+
+    let addedCount = 0;
+    let lastDateStr = null;
+
+    cards.forEach((card, idx) => {
+      const title = card.querySelector('.analysis-title').value.trim();
+      const dateStr = card.querySelector('.analysis-date').value;
+      const endDateStr = card.querySelector('.analysis-end-date').value;
+      const startTime = card.querySelector('.analysis-start-time').value;
+      const endTime = card.querySelector('.analysis-end-time').value;
+      const description = card.querySelector('.analysis-description').value.trim();
+
+      if (!title || !dateStr) return;
+
+      const isMultiDay = !!endDateStr && endDateStr !== dateStr;
+
+      if (isMultiDay) {
+        const start = new Date(dateStr);
+        const end = new Date(endDateStr);
+
+        if (end < start) {
+          showToast(`「${title}」の終了日は開始日以降の日付にしてください`, 'error');
+          return;
+        }
+
+        const diffDays = Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
+        if (diffDays > 60) {
+          showToast(`「${title}」は60日を超えるため追加できません`, 'error');
+          return;
+        }
+
+        // 複数日の予定は手動追加と同様にgroupIdで日程をまとめる
+        const groupId = 'g-' + Date.now().toString() + '-' + idx;
+        const current = new Date(start);
+        while (current <= end) {
+          const dStr = getFormattedDate(current);
+          const newEvent = {
+            id: Date.now().toString() + '-' + idx + '-' + dStr,
+            groupId,
+            groupStartDate: dateStr,
+            groupEndDate: endDateStr,
+            title,
+            startTime: startTime || null,
+            endTime: endTime || null,
+            description: description || null
+          };
+
+          if (!schedules[dStr]) {
+            schedules[dStr] = [];
+          }
+          schedules[dStr].push(newEvent);
+          current.setDate(current.getDate() + 1);
+        }
+
+        lastDateStr = dateStr;
+        addedCount++;
+      } else {
+        const newEvent = {
+          id: Date.now().toString() + '-' + idx,
+          title,
+          startTime: startTime || null,
+          endTime: endTime || null,
+          description: description || null
+        };
+
+        if (!schedules[dateStr]) {
+          schedules[dateStr] = [];
+        }
+
+        schedules[dateStr].push(newEvent);
+        lastDateStr = dateStr;
+        addedCount++;
+      }
+    });
+
+    if (addedCount === 0) {
+      showToast('タイトルと日付を入力してください', 'error');
+      return;
+    }
+
     saveSchedules();
-    
+
     closeModal(modalAnalysisResult);
     clearImagePreview();
-    
-    // カレンダーを登録した日付の月に切り替える
-    selectedDate = new Date(dateStr);
-    currentMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
-    
+
+    // カレンダーを最後に追加した予定の月に切り替える
+    if (lastDateStr) {
+      selectedDate = new Date(lastDateStr);
+      currentMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+    }
+
     renderCalendar();
     renderScheduleList();
-    showToast('AIが読み取った予定を追加しました！', 'success');
+    showToast(`AIが読み取った予定を${addedCount}件追加しました！`, 'success');
   });
   
   // ==========================================

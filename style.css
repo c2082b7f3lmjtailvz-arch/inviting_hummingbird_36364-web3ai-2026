@@ -932,6 +932,30 @@ input:checked + .slider:before {
   margin-bottom: 1.25rem;
 }
 
+.analysis-item {
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  padding: 1.25rem 1.25rem 0.25rem;
+  margin-bottom: 1.25rem;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.analysis-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.analysis-item-badge {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #e9d5ff;
+  background: rgba(168, 85, 247, 0.15);
+  padding: 0.25rem 0.65rem;
+  border-radius: var(--radius-full, 999px);
+}
+
 .icon-inline {
   width: 1.25rem;
   height: 1.25rem;
