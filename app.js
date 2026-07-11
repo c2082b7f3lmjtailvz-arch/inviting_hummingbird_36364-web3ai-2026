@@ -90,6 +90,11 @@ document.addEventListener('DOMContentLoaded', () => {
     return weekdays[date.getDay()];
   }
 
+  function formatMonthDay(dateStr) {
+    const [, m, d] = dateStr.split('-');
+    return `${parseInt(m, 10)}/${parseInt(d, 10)}`;
+  }
+
   function renderCalendar() {
     calendarDays.innerHTML = '';
     
@@ -246,8 +251,16 @@ document.addEventListener('DOMContentLoaded', () => {
       const item = document.createElement('div');
       item.className = 'schedule-item';
       
-      const timeStart = evt.startTime || '--:--';
-      const timeEnd = evt.endTime ? `〜 ${evt.endTime}` : '';
+      let timeStart, timeEnd;
+      if (evt.groupId) {
+        const startMD = formatMonthDay(evt.groupStartDate);
+        const endMD = formatMonthDay(evt.groupEndDate);
+        timeStart = evt.startTime ? `${startMD} ${evt.startTime}` : startMD;
+        timeEnd = `〜 ${evt.endTime ? `${endMD} ${evt.endTime}` : endMD}`;
+      } else {
+        timeStart = evt.startTime || '--:--';
+        timeEnd = evt.endTime ? `〜 ${evt.endTime}` : '';
+      }
       
       item.innerHTML = `
         <div class="schedule-time-indicator">
@@ -277,15 +290,32 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   
   function deleteSchedule(dateStr, id) {
-    if (confirm('この予定を削除しますか？')) {
-      schedules[dateStr] = schedules[dateStr].filter(evt => evt.id !== id);
-      if (schedules[dateStr].length === 0) {
-        delete schedules[dateStr];
+    const evt = (schedules[dateStr] || []).find(e => e.id === id);
+    const groupId = evt && evt.groupId;
+
+    const confirmMsg = groupId
+      ? 'この予定は複数日にわたる予定です。すべての日程を削除しますか？'
+      : 'この予定を削除しますか？';
+
+    if (confirm(confirmMsg)) {
+      if (groupId) {
+        // 複数日の予定はグループIDが一致する全日程を削除
+        Object.keys(schedules).forEach(dStr => {
+          schedules[dStr] = schedules[dStr].filter(e => e.groupId !== groupId);
+          if (schedules[dStr].length === 0) {
+            delete schedules[dStr];
+          }
+        });
+      } else {
+        schedules[dateStr] = schedules[dateStr].filter(e => e.id !== id);
+        if (schedules[dateStr].length === 0) {
+          delete schedules[dateStr];
+        }
       }
       saveSchedules();
       renderCalendar();
       renderScheduleList();
-      showToast('予定を削除しました', 'success');
+      showToast(groupId ? 'すべての日程の予定を削除しました' : '予定を削除しました', 'success');
     }
   }
   
@@ -388,11 +418,15 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       
       // 開始日から終了日まで各日に予定を登録
+      const groupId = 'g-' + Date.now().toString();
       const current = new Date(start);
       while (current <= end) {
         const dStr = getFormattedDate(current);
         const newEvent = {
           id: Date.now().toString() + '-' + dStr,
+          groupId,
+          groupStartDate: startDateStr,
+          groupEndDate: endDateStr,
           title,
           startTime: startTime || null,
           endTime: endTime || null,
