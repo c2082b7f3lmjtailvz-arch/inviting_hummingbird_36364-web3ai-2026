@@ -27,6 +27,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const inputApiKey = document.getElementById('input-api-key');
   const checkboxDemoMode = document.getElementById('checkbox-demo-mode');
   const btnSaveApi = document.getElementById('btn-save-api');
+  const btnExport = document.getElementById('btn-export');
+  const btnImport = document.getElementById('btn-import');
+  const importFileInput = document.getElementById('import-file-input');
   
   // Calendar
   const calendarMonthYear = document.getElementById('calendar-month-year');
@@ -323,7 +326,89 @@ document.addEventListener('DOMContentLoaded', () => {
   function saveSchedules() {
     localStorage.setItem('ai-calendar-schedules', JSON.stringify(schedules));
   }
-  
+
+  // ==========================================
+  // 5.5 Export / Import (バックアップ・他端末への移行)
+  // ==========================================
+
+  function isValidSchedulesShape(obj) {
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return false;
+    return Object.values(obj).every(v => Array.isArray(v));
+  }
+
+  btnExport.addEventListener('click', () => {
+    const exportData = {
+      app: 'ai-calendar-prototype',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      schedules
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `calendar-backup-${getFormattedDate(new Date())}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showToast('予定をエクスポートしました', 'success');
+  });
+
+  btnImport.addEventListener('click', () => {
+    importFileInput.click();
+  });
+
+  importFileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target.result);
+        const importedSchedules = (parsed && typeof parsed.schedules === 'object' && parsed.schedules !== null)
+          ? parsed.schedules
+          : parsed;
+
+        if (!isValidSchedulesShape(importedSchedules)) {
+          throw new Error('ファイルの形式が正しくありません');
+        }
+
+        const eventCount = Object.values(importedSchedules).reduce((sum, arr) => sum + arr.length, 0);
+
+        if (eventCount === 0) {
+          showToast('ファイルに予定が含まれていません', 'error');
+          return;
+        }
+
+        if (!confirm(`${eventCount}件の予定を現在のカレンダーに追加します（既存の予定は削除されません）。よろしいですか？`)) {
+          return;
+        }
+
+        Object.keys(importedSchedules).forEach(dateStr => {
+          if (!schedules[dateStr]) {
+            schedules[dateStr] = [];
+          }
+          schedules[dateStr].push(...importedSchedules[dateStr]);
+        });
+
+        saveSchedules();
+        renderCalendar();
+        renderScheduleList();
+        showToast(`${eventCount}件の予定をインポートしました！`, 'success');
+      } catch (err) {
+        console.error(err);
+        showToast(`インポートに失敗しました: ${err.message}`, 'error');
+      } finally {
+        importFileInput.value = '';
+      }
+    };
+    reader.readAsText(file);
+  });
+
   // 複数日トグル要素
   const checkboxMultiDay = document.getElementById('checkbox-multi-day');
   const singleDayInput = document.getElementById('single-day-input');

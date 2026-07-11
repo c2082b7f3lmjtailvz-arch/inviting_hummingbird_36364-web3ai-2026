@@ -112,6 +112,13 @@ input, textarea, button {
   gap: 0.75rem;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
 .logo-icon {
   width: 2rem;
   height: 2rem;

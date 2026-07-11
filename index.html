@@ -22,6 +22,15 @@
         <h1>AI Calendar <span class="badge">Prot</span></h1>
       </div>
       <div class="header-actions">
+        <button id="btn-export" class="btn btn-secondary" title="予定をJSONファイルとして保存">
+          <i data-lucide="download"></i>
+          <span>エクスポート</span>
+        </button>
+        <button id="btn-import" class="btn btn-secondary" title="JSONファイルから予定を読み込み">
+          <i data-lucide="upload"></i>
+          <span>インポート</span>
+        </button>
+        <input type="file" id="import-file-input" accept="application/json,.json" style="display: none;">
         <button id="btn-api-settings" class="btn btn-secondary">
           <i data-lucide="key"></i>
           <span>API設定</span>
