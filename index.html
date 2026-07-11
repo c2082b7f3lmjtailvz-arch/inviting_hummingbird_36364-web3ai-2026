@@ -179,10 +179,32 @@
             <input type="text" id="schedule-title" required placeholder="例: 総合科学特論の講義">
           </div>
           
-          <div class="form-row">
+          <div class="toggle-group toggle-group-compact" id="multi-day-toggle-group">
+            <div class="toggle-label">
+              <span class="toggle-title">複数日の予定</span>
+              <span class="toggle-desc">合宿・旅行など連続する予定を一括登録</span>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="checkbox-multi-day">
+              <span class="slider round"></span>
+            </label>
+          </div>
+
+          <div id="single-day-input" class="form-row">
             <div class="form-group">
               <label for="schedule-date">日付 <span class="required">*</span></label>
               <input type="date" id="schedule-date" required>
+            </div>
+          </div>
+
+          <div id="multi-day-input" class="form-row" style="display: none;">
+            <div class="form-group">
+              <label for="schedule-date-start">開始日 <span class="required">*</span></label>
+              <input type="date" id="schedule-date-start">
+            </div>
+            <div class="form-group">
+              <label for="schedule-date-end">終了日 <span class="required">*</span></label>
+              <input type="date" id="schedule-date-end">
             </div>
           </div>
           

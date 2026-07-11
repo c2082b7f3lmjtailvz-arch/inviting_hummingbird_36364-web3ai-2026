@@ -293,15 +293,59 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.setItem('ai-calendar-schedules', JSON.stringify(schedules));
   }
   
+  // 複数日トグル要素
+  const checkboxMultiDay = document.getElementById('checkbox-multi-day');
+  const singleDayInput = document.getElementById('single-day-input');
+  const multiDayInput = document.getElementById('multi-day-input');
+  const scheduleDateStart = document.getElementById('schedule-date-start');
+  const scheduleDateEnd = document.getElementById('schedule-date-end');
+  const scheduleDate = document.getElementById('schedule-date');
+  
+  // 複数日トグルの切り替え制御
+  checkboxMultiDay.addEventListener('change', () => {
+    const isMultiDay = checkboxMultiDay.checked;
+    if (isMultiDay) {
+      singleDayInput.style.display = 'none';
+      multiDayInput.style.display = '';
+      scheduleDate.removeAttribute('required');
+      scheduleDateStart.setAttribute('required', '');
+      scheduleDateEnd.setAttribute('required', '');
+      // 単日の値を開始日にコピー
+      if (scheduleDate.value) {
+        scheduleDateStart.value = scheduleDate.value;
+      }
+    } else {
+      singleDayInput.style.display = '';
+      multiDayInput.style.display = 'none';
+      scheduleDate.setAttribute('required', '');
+      scheduleDateStart.removeAttribute('required');
+      scheduleDateEnd.removeAttribute('required');
+      // 開始日の値を単日にコピー
+      if (scheduleDateStart.value) {
+        scheduleDate.value = scheduleDateStart.value;
+      }
+    }
+  });
+
   // 手動追加モーダルの表示制御
   btnAddSchedule.addEventListener('click', () => {
     // 選択された日付をフォームの初期値にする
-    document.getElementById('schedule-date').value = getFormattedDate(selectedDate);
+    const dateStr = getFormattedDate(selectedDate);
+    scheduleDate.value = dateStr;
+    scheduleDateStart.value = dateStr;
+    scheduleDateEnd.value = '';
     // フォームクリア
     document.getElementById('schedule-title').value = '';
     document.getElementById('schedule-start-time').value = '';
     document.getElementById('schedule-end-time').value = '';
     document.getElementById('schedule-description').value = '';
+    // 複数日トグルをリセット
+    checkboxMultiDay.checked = false;
+    singleDayInput.style.display = '';
+    multiDayInput.style.display = 'none';
+    scheduleDate.setAttribute('required', '');
+    scheduleDateStart.removeAttribute('required');
+    scheduleDateEnd.removeAttribute('required');
     
     openModal(modalAddSchedule);
   });
@@ -311,37 +355,98 @@ document.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
     
     const title = document.getElementById('schedule-title').value.trim();
-    const dateStr = document.getElementById('schedule-date').value;
     const startTime = document.getElementById('schedule-start-time').value;
     const endTime = document.getElementById('schedule-end-time').value;
     const description = document.getElementById('schedule-description').value.trim();
+    const isMultiDay = checkboxMultiDay.checked;
     
-    if (!title || !dateStr) return;
+    if (!title) return;
     
-    const newEvent = {
-      id: Date.now().toString(),
-      title,
-      startTime: startTime || null,
-      endTime: endTime || null,
-      description: description || null
-    };
-    
-    if (!schedules[dateStr]) {
-      schedules[dateStr] = [];
+    if (isMultiDay) {
+      // 複数日モード
+      const startDateStr = scheduleDateStart.value;
+      const endDateStr = scheduleDateEnd.value;
+      
+      if (!startDateStr || !endDateStr) {
+        showToast('開始日と終了日を入力してください', 'error');
+        return;
+      }
+      
+      const start = new Date(startDateStr);
+      const end = new Date(endDateStr);
+      
+      if (end < start) {
+        showToast('終了日は開始日以降の日付を指定してください', 'error');
+        return;
+      }
+      
+      // 日数計算（上限チェック）
+      const diffDays = Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
+      if (diffDays > 60) {
+        showToast('60日を超える予定は登録できません', 'error');
+        return;
+      }
+      
+      // 開始日から終了日まで各日に予定を登録
+      const current = new Date(start);
+      while (current <= end) {
+        const dStr = getFormattedDate(current);
+        const newEvent = {
+          id: Date.now().toString() + '-' + dStr,
+          title,
+          startTime: startTime || null,
+          endTime: endTime || null,
+          description: description || null
+        };
+        
+        if (!schedules[dStr]) {
+          schedules[dStr] = [];
+        }
+        schedules[dStr].push(newEvent);
+        current.setDate(current.getDate() + 1);
+      }
+      
+      saveSchedules();
+      closeModal(modalAddSchedule);
+      
+      // カレンダーを開始日の月に切り替える
+      selectedDate = new Date(startDateStr);
+      currentMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+      
+      renderCalendar();
+      renderScheduleList();
+      showToast(`${diffDays}日間の予定を追加しました！`, 'success');
+      
+    } else {
+      // 単日モード（従来通り）
+      const dateStr = scheduleDate.value;
+      if (!dateStr) return;
+      
+      const newEvent = {
+        id: Date.now().toString(),
+        title,
+        startTime: startTime || null,
+        endTime: endTime || null,
+        description: description || null
+      };
+      
+      if (!schedules[dateStr]) {
+        schedules[dateStr] = [];
+      }
+      
+      schedules[dateStr].push(newEvent);
+      saveSchedules();
+      
+      closeModal(modalAddSchedule);
+      
+      // カレンダーを登録した日付の月に切り替える
+      selectedDate = new Date(dateStr);
+      currentMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+      
+      renderCalendar();
+      renderScheduleList();
+      showToast('予定を追加しました！', 'success');
     }
-    
-    schedules[dateStr].push(newEvent);
-    saveSchedules();
-    
-    closeModal(modalAddSchedule);
-    
-    // カレンダーを登録した日付の月に切り替える
-    selectedDate = new Date(dateStr);
-    currentMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
-    
-    renderCalendar();
-    renderScheduleList();
-    showToast('予定を追加しました！', 'success');
   });
   
   // ==========================================
