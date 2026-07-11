@@ -181,7 +181,8 @@ document.addEventListener('DOMContentLoaded', () => {
     sortedEvents.slice(0, 2).forEach(evt => {
       const timeStr = evt.startTime ? `${evt.startTime} ` : '';
       const timeClass = evt.startTime ? 'has-time' : '';
-      eventsHTML += `<div class="event-badge ${timeClass}" title="${evt.title}">${timeStr}${evt.title}</div>`;
+      const safeTitle = escapeHTML(evt.title);
+      eventsHTML += `<div class="event-badge ${timeClass}" title="${safeTitle}">${timeStr}${safeTitle}</div>`;
     });
     
     if (dayEvents.length > 2) {
