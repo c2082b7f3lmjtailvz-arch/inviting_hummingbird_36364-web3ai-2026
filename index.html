@@ -38,8 +38,20 @@
       </div>
     </header>
 
+    <!-- Tab Navigation -->
+    <div class="tab-nav">
+      <button class="tab-btn active" data-tab="calendar">
+        <i data-lucide="calendar-days"></i>
+        <span>カレンダー</span>
+      </button>
+      <button class="tab-btn" data-tab="cashbook">
+        <i data-lucide="wallet"></i>
+        <span>出納帳</span>
+      </button>
+    </div>
+
     <!-- Main Content Grid -->
-    <main class="app-main">
+    <main class="app-main tab-panel active" data-tab-panel="calendar">
       <!-- Left Column: Calendar -->
       <section class="card calendar-card">
         <div class="calendar-header">
@@ -50,7 +62,13 @@
             <button id="btn-next-month" class="btn-icon" title="翌月"><i data-lucide="chevron-right"></i></button>
           </div>
         </div>
-        
+
+        <button id="btn-goto-cashbook" class="calendar-expense-summary" title="出納帳を開く">
+          <i data-lucide="wallet"></i>
+          <span>今月の支出</span>
+          <strong id="calendar-month-expense">¥0</strong>
+        </button>
+
         <!-- Weekdays -->
         <div class="weekdays">
           <div class="weekday sun">日</div>
@@ -131,7 +149,7 @@
     </main>
 
     <!-- Cash Book Section (Receipt-based Expense Tracking) -->
-    <section class="card ledger-card">
+    <section class="card ledger-card tab-panel" data-tab-panel="cashbook">
       <div class="card-header">
         <div class="title-with-subtitle">
           <span class="card-subtitle">CASH BOOK</span>
@@ -143,47 +161,56 @@
         </button>
       </div>
 
-      <div class="ledger-grid">
-        <!-- Receipt Dropzone -->
-        <div class="ledger-dropzone-col">
-          <div id="receipt-dropzone" class="dropzone">
-            <input type="file" id="receipt-file-input" accept="image/*" style="display: none;">
-            <div class="dropzone-content">
-              <div class="icon-pulse">
-                <i data-lucide="receipt" class="drop-icon"></i>
-              </div>
-              <h4>レシートの写真をドロップ</h4>
-              <p>またはファイルを選択してください</p>
-              <button type="button" class="btn btn-outline btn-sm btn-browse" onclick="document.getElementById('receipt-file-input').click()">
-                ファイルを選択
-              </button>
-            </div>
-            <div id="receipt-preview-container" class="preview-container" style="display: none;">
-              <img id="receipt-image-preview" src="" alt="アップロードされたレシート">
-              <div class="preview-overlay">
-                <button type="button" id="btn-clear-receipt-image" class="btn-icon btn-danger-icon" title="画像を解除">
-                  <i data-lucide="trash-2"></i>
-                </button>
-                <button type="button" id="btn-analyze-receipt" class="btn btn-glow">
-                  <i data-lucide="sparkles"></i>
-                  <span>AIでレシートを読み取る</span>
-                </button>
-              </div>
-            </div>
+      <!-- Receipt Dropzone -->
+      <div id="receipt-dropzone" class="dropzone ledger-dropzone">
+        <input type="file" id="receipt-file-input" accept="image/*" style="display: none;">
+        <div class="dropzone-content">
+          <div class="icon-pulse">
+            <i data-lucide="receipt" class="drop-icon"></i>
+          </div>
+          <h4>レシートの写真をドロップ</h4>
+          <p>またはファイルを選択してください</p>
+          <button type="button" class="btn btn-outline btn-sm btn-browse" onclick="document.getElementById('receipt-file-input').click()">
+            ファイルを選択
+          </button>
+        </div>
+        <div id="receipt-preview-container" class="preview-container" style="display: none;">
+          <img id="receipt-image-preview" src="" alt="アップロードされたレシート">
+          <div class="preview-overlay">
+            <button type="button" id="btn-clear-receipt-image" class="btn-icon btn-danger-icon" title="画像を解除">
+              <i data-lucide="trash-2"></i>
+            </button>
+            <button type="button" id="btn-analyze-receipt" class="btn btn-glow">
+              <i data-lucide="sparkles"></i>
+              <span>AIでレシートを読み取る</span>
+            </button>
           </div>
         </div>
+      </div>
 
-        <!-- Ledger List -->
-        <div class="ledger-list-col">
-          <div class="ledger-month-header">
-            <h4 id="ledger-month-label">今月の支出</h4>
-            <span class="ledger-total-badge">合計 <strong id="ledger-total-amount">¥0</strong></span>
-          </div>
-          <div id="ledger-list" class="ledger-list">
-            <div class="empty-state">
-              <i data-lucide="receipt"></i>
-              <p>この月の支出はまだありません</p>
-            </div>
+      <!-- Year Overview (12 months) -->
+      <div id="ledger-year-view">
+        <div class="ledger-year-header">
+          <button id="btn-ledger-prev-year" class="btn-icon" title="前年"><i data-lucide="chevron-left"></i></button>
+          <h4 id="ledger-year-label">2026年の支出</h4>
+          <button id="btn-ledger-next-year" class="btn-icon" title="翌年"><i data-lucide="chevron-right"></i></button>
+        </div>
+        <div id="ledger-year-grid" class="ledger-year-grid">
+          <!-- Dynamically populated: 12 month tiles -->
+        </div>
+      </div>
+
+      <!-- Month Detail (drill-down) -->
+      <div id="ledger-month-detail" class="ledger-month-detail" style="display: none;">
+        <div class="ledger-month-header">
+          <button id="btn-ledger-back-to-year" class="btn-icon" title="年間表示に戻る"><i data-lucide="arrow-left"></i></button>
+          <h4 id="ledger-month-label">2026年7月の支出</h4>
+          <span class="ledger-total-badge">合計 <strong id="ledger-total-amount">¥0</strong></span>
+        </div>
+        <div id="ledger-list" class="ledger-list">
+          <div class="empty-state">
+            <i data-lucide="receipt"></i>
+            <p>この月の支出はまだありません</p>
           </div>
         </div>
       </div>
