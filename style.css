@@ -159,6 +159,121 @@ input, textarea, button {
 }
 
 /* ==========================================================================
+   Cash Book (Receipt-based Expense Tracking)
+   ========================================================================== */
+
+.ledger-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .ledger-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ledger-month-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.ledger-month-header h4 {
+  font-size: 1rem;
+  color: var(--text-main);
+}
+
+.ledger-total-badge {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.ledger-total-badge strong {
+  color: var(--primary);
+  font-size: 1.1rem;
+  margin-left: 0.35rem;
+}
+
+.ledger-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.ledger-day-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ledger-day-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--border-glass);
+}
+
+.ledger-day-subtotal {
+  color: var(--text-main);
+  font-weight: 700;
+}
+
+.ledger-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-glass);
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+}
+
+.ledger-entry:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.ledger-entry-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.ledger-entry-store {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-main);
+}
+
+.ledger-entry-amount {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text-main);
+  white-space: nowrap;
+}
+
+.ledger-entry-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+/* ==========================================================================
    Shared Card (Glassmorphism)
    ========================================================================== */
 

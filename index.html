@@ -129,6 +129,65 @@
         </div>
       </section>
     </main>
+
+    <!-- Cash Book Section (Receipt-based Expense Tracking) -->
+    <section class="card ledger-card">
+      <div class="card-header">
+        <div class="title-with-subtitle">
+          <span class="card-subtitle">CASH BOOK</span>
+          <h3>出納帳（レシートから支出管理）</h3>
+        </div>
+        <button id="btn-add-expense" class="btn btn-primary btn-sm">
+          <i data-lucide="plus"></i>
+          <span>支出を追加</span>
+        </button>
+      </div>
+
+      <div class="ledger-grid">
+        <!-- Receipt Dropzone -->
+        <div class="ledger-dropzone-col">
+          <div id="receipt-dropzone" class="dropzone">
+            <input type="file" id="receipt-file-input" accept="image/*" style="display: none;">
+            <div class="dropzone-content">
+              <div class="icon-pulse">
+                <i data-lucide="receipt" class="drop-icon"></i>
+              </div>
+              <h4>レシートの写真をドロップ</h4>
+              <p>またはファイルを選択してください</p>
+              <button type="button" class="btn btn-outline btn-sm btn-browse" onclick="document.getElementById('receipt-file-input').click()">
+                ファイルを選択
+              </button>
+            </div>
+            <div id="receipt-preview-container" class="preview-container" style="display: none;">
+              <img id="receipt-image-preview" src="" alt="アップロードされたレシート">
+              <div class="preview-overlay">
+                <button type="button" id="btn-clear-receipt-image" class="btn-icon btn-danger-icon" title="画像を解除">
+                  <i data-lucide="trash-2"></i>
+                </button>
+                <button type="button" id="btn-analyze-receipt" class="btn btn-glow">
+                  <i data-lucide="sparkles"></i>
+                  <span>AIでレシートを読み取る</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ledger List -->
+        <div class="ledger-list-col">
+          <div class="ledger-month-header">
+            <h4 id="ledger-month-label">今月の支出</h4>
+            <span class="ledger-total-badge">合計 <strong id="ledger-total-amount">¥0</strong></span>
+          </div>
+          <div id="ledger-list" class="ledger-list">
+            <div class="empty-state">
+              <i data-lucide="receipt"></i>
+              <p>この月の支出はまだありません</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   </div>
 
   <!-- Modal: API Settings -->
@@ -259,6 +318,61 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-outline modal-close">キャンセル</button>
           <button type="submit" class="btn btn-glow">カレンダーに追加する</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Add Expense Form (Manual) -->
+  <div id="modal-add-expense" class="modal">
+    <div class="modal-content glass">
+      <div class="modal-header">
+        <h3><i data-lucide="receipt" class="icon-inline"></i> 支出を手動で追加</h3>
+        <button class="btn-icon modal-close"><i data-lucide="x"></i></button>
+      </div>
+      <form id="form-manual-expense">
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="expense-date">日付 <span class="required">*</span></label>
+              <input type="date" id="expense-date" required>
+            </div>
+            <div class="form-group">
+              <label for="expense-amount">金額（円） <span class="required">*</span></label>
+              <input type="number" id="expense-amount" min="0" step="1" required placeholder="例: 850">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="expense-store">店名（任意）</label>
+            <input type="text" id="expense-store" placeholder="例: コンビニA">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline modal-close">キャンセル</button>
+          <button type="submit" class="btn btn-primary">追加する</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Receipt Analysis Result Confirmation -->
+  <div id="modal-receipt-analysis" class="modal">
+    <div class="modal-content glass max-w-lg">
+      <div class="modal-header">
+        <h3 class="success-title"><i data-lucide="sparkles" class="icon-inline"></i> レシート解析結果の確認</h3>
+        <button class="btn-icon modal-close"><i data-lucide="x"></i></button>
+      </div>
+      <form id="form-confirm-receipt">
+        <div class="modal-body">
+          <p class="analysis-intro-text">
+            レシートから以下の支出が検出されました。内容を確認・編集し、出納帳に追加してください。
+          </p>
+
+          <div id="receipt-items-container"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline modal-close">キャンセル</button>
+          <button type="submit" class="btn btn-glow">出納帳に追加する</button>
         </div>
       </form>
     </div>
