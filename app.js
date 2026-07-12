@@ -332,24 +332,28 @@ document.addEventListener('DOMContentLoaded', () => {
       if (evt.groupId) {
         const startMD = formatMonthDay(evt.groupStartDate);
         const endMD = formatMonthDay(evt.groupEndDate);
-        timeStart = evt.startTime ? `${startMD} ${evt.startTime}` : startMD;
-        timeEnd = `〜 ${evt.endTime ? `${endMD} ${evt.endTime}` : endMD}`;
+        timeStart = evt.startTime ? `${startMD} ${escapeHTML(evt.startTime)}` : startMD;
+        timeEnd = `〜 ${evt.endTime ? `${endMD} ${escapeHTML(evt.endTime)}` : endMD}`;
       } else {
-        timeStart = evt.startTime || '--:--';
-        timeEnd = evt.endTime ? `〜 ${evt.endTime}` : '';
+        timeStart = evt.startTime ? escapeHTML(evt.startTime) : '--:--';
+        timeEnd = evt.endTime ? `〜 ${escapeHTML(evt.endTime)}` : '';
       }
-      
+
+      const repeatBadge = evt.repeatId
+        ? '<i data-lucide="repeat" class="schedule-repeat-icon" title="繰り返しの予定"></i>'
+        : '';
+
       item.innerHTML = `
         <div class="schedule-time-indicator">
           <span class="schedule-time-start">${timeStart}</span>
           <span class="schedule-time-end">${timeEnd}</span>
         </div>
         <div class="schedule-info">
-          <h4 class="schedule-title">${escapeHTML(evt.title)}</h4>
+          <h4 class="schedule-title">${repeatBadge}${escapeHTML(evt.title)}</h4>
           <p class="schedule-desc">${escapeHTML(evt.description || '').replace(/\n/g, '<br>')}</p>
         </div>
         <div class="schedule-actions">
-          <button class="btn-icon btn-danger-icon btn-delete-schedule" data-id="${evt.id}" title="予定を削除">
+          <button class="btn-icon btn-danger-icon btn-delete-schedule" title="予定を削除">
             <i data-lucide="trash-2"></i>
           </button>
         </div>
@@ -368,34 +372,89 @@ document.addEventListener('DOMContentLoaded', () => {
   
   function deleteSchedule(dateStr, id) {
     const evt = (schedules[dateStr] || []).find(e => e.id === id);
-    const groupId = evt && evt.groupId;
+    if (!evt) return;
 
-    const confirmMsg = groupId
-      ? 'この予定は複数日にわたる予定です。すべての日程を削除しますか？'
-      : 'この予定を削除しますか？';
-
-    if (confirm(confirmMsg)) {
-      if (groupId) {
-        // 複数日の予定はグループIDが一致する全日程を削除
+    if (evt.groupId) {
+      // 複数日の予定はグループIDが一致する全日程を削除
+      const groupId = evt.groupId;
+      if (confirm('この予定は複数日にわたる予定です。すべての日程を削除しますか？')) {
         Object.keys(schedules).forEach(dStr => {
           schedules[dStr] = schedules[dStr].filter(e => e.groupId !== groupId);
           if (schedules[dStr].length === 0) {
             delete schedules[dStr];
           }
         });
-      } else {
-        schedules[dateStr] = schedules[dateStr].filter(e => e.id !== id);
-        if (schedules[dateStr].length === 0) {
-          delete schedules[dateStr];
-        }
+        saveSchedules();
+        renderCalendar();
+        renderScheduleList();
+        showToast('すべての日程の予定を削除しました', 'success');
+      }
+      return;
+    }
+
+    if (evt.repeatId) {
+      // 繰り返しの予定は「この回だけ」「今後すべて」を選ばせる
+      pendingRecurringDelete = { dateStr, id, repeatId: evt.repeatId };
+      openModal(modalDeleteRecurring);
+      return;
+    }
+
+    if (confirm('この予定を削除しますか？')) {
+      schedules[dateStr] = schedules[dateStr].filter(e => e.id !== id);
+      if (schedules[dateStr].length === 0) {
+        delete schedules[dateStr];
       }
       saveSchedules();
       renderCalendar();
       renderScheduleList();
-      showToast(groupId ? 'すべての日程の予定を削除しました' : '予定を削除しました', 'success');
+      showToast('予定を削除しました', 'success');
     }
   }
-  
+
+  // 繰り返し予定の削除範囲選択モーダル
+  const modalDeleteRecurring = document.getElementById('modal-delete-recurring');
+  const btnDeleteRecurringThis = document.getElementById('btn-delete-recurring-this');
+  const btnDeleteRecurringFuture = document.getElementById('btn-delete-recurring-future');
+  let pendingRecurringDelete = null;
+
+  btnDeleteRecurringThis.addEventListener('click', () => {
+    if (!pendingRecurringDelete) return;
+    const { dateStr, id } = pendingRecurringDelete;
+
+    schedules[dateStr] = schedules[dateStr].filter(e => e.id !== id);
+    if (schedules[dateStr].length === 0) {
+      delete schedules[dateStr];
+    }
+    saveSchedules();
+    closeModal(modalDeleteRecurring);
+    renderCalendar();
+    renderScheduleList();
+    showToast('この回の予定を削除しました', 'success');
+    pendingRecurringDelete = null;
+  });
+
+  btnDeleteRecurringFuture.addEventListener('click', () => {
+    if (!pendingRecurringDelete) return;
+    const { dateStr, repeatId } = pendingRecurringDelete;
+
+    // 選択した回以降（同日を含む）の同じ繰り返しシリーズをすべて削除
+    Object.keys(schedules).forEach(dStr => {
+      if (dStr >= dateStr) {
+        schedules[dStr] = schedules[dStr].filter(e => e.repeatId !== repeatId);
+        if (schedules[dStr].length === 0) {
+          delete schedules[dStr];
+        }
+      }
+    });
+    saveSchedules();
+    closeModal(modalDeleteRecurring);
+    renderCalendar();
+    renderScheduleList();
+    showToast('今後の繰り返し予定を削除しました', 'success');
+    pendingRecurringDelete = null;
+  });
+
+
   function saveSchedules() {
     localStorage.setItem('ai-calendar-schedules', JSON.stringify(schedules));
   }
@@ -404,9 +463,75 @@ document.addEventListener('DOMContentLoaded', () => {
   // 5.5 Export / Import (バックアップ・他端末への移行)
   // ==========================================
 
-  function isValidSchedulesShape(obj) {
-    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return false;
-    return Object.values(obj).every(v => Array.isArray(v));
+  // インポートしたファイルは外部由来の信頼できないデータのため、
+  // 型を厳密に検証しながら安全な形に変換してから取り込む。
+  function isDateKey(key) {
+    return typeof key === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(key);
+  }
+
+  function makeSafeId() {
+    return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+  }
+
+  function sanitizeScheduleEntry(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const title = typeof raw.title === 'string' ? raw.title.trim().slice(0, 200) : '';
+    if (!title) return null;
+
+    const entry = {
+      id: (typeof raw.id === 'string' && raw.id.length > 0 && raw.id.length <= 100) ? raw.id : makeSafeId(),
+      title,
+      startTime: typeof raw.startTime === 'string' ? raw.startTime.slice(0, 20) : null,
+      endTime: typeof raw.endTime === 'string' ? raw.endTime.slice(0, 20) : null,
+      description: typeof raw.description === 'string' ? raw.description.slice(0, 2000) : null
+    };
+
+    if (typeof raw.groupId === 'string' && isDateKey(raw.groupStartDate) && isDateKey(raw.groupEndDate)) {
+      entry.groupId = raw.groupId.slice(0, 100);
+      entry.groupStartDate = raw.groupStartDate;
+      entry.groupEndDate = raw.groupEndDate;
+    }
+
+    if (typeof raw.repeatId === 'string' && typeof raw.repeatType === 'string') {
+      entry.repeatId = raw.repeatId.slice(0, 100);
+      entry.repeatType = raw.repeatType.slice(0, 20);
+    }
+
+    return entry;
+  }
+
+  function sanitizeExpenseEntry(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    const amount = Number(raw.amount);
+    if (!Number.isFinite(amount) || amount < 0) return null;
+
+    return {
+      id: (typeof raw.id === 'string' && raw.id.length > 0 && raw.id.length <= 100) ? raw.id : makeSafeId(),
+      amount,
+      storeName: typeof raw.storeName === 'string' ? raw.storeName.trim().slice(0, 200) : null
+    };
+  }
+
+  // 日付キーのオブジェクトを検証・無害化しつつ { data, count } の形で返す
+  function sanitizeDateKeyedMap(obj, sanitizeEntryFn) {
+    const data = {};
+    let count = 0;
+
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
+      return { data, count };
+    }
+
+    Object.keys(obj).forEach(dateKey => {
+      if (!isDateKey(dateKey) || !Array.isArray(obj[dateKey])) return;
+
+      const cleaned = obj[dateKey].map(sanitizeEntryFn).filter(Boolean);
+      if (cleaned.length > 0) {
+        data[dateKey] = cleaned;
+        count += cleaned.length;
+      }
+    });
+
+    return { data, count };
   }
 
   function scopeLabel(scope) {
@@ -474,9 +599,17 @@ document.addEventListener('DOMContentLoaded', () => {
     showToast(`${scopeLabel(scope)}をエクスポートしました`, 'success');
   }
 
+  const MAX_IMPORT_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
   importFileInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
+    if (file.size > MAX_IMPORT_FILE_SIZE) {
+      showToast('ファイルサイズが大きすぎます（10MBまで）', 'error');
+      importFileInput.value = '';
+      return;
+    }
 
     const scope = pendingImportScope || 'both';
     const wantSchedules = scope === 'schedules' || scope === 'both';
@@ -496,9 +629,12 @@ document.addEventListener('DOMContentLoaded', () => {
           const raw = (parsed && typeof parsed.schedules === 'object' && parsed.schedules !== null)
             ? parsed.schedules
             : (scope === 'schedules' ? parsed : null); // 旧形式（予定のみのファイル）との互換
-          if (raw && isValidSchedulesShape(raw)) {
-            importedSchedules = raw;
-            scheduleCount = Object.values(raw).reduce((sum, arr) => sum + arr.length, 0);
+          if (raw) {
+            const { data, count } = sanitizeDateKeyedMap(raw, sanitizeScheduleEntry);
+            if (count > 0) {
+              importedSchedules = data;
+              scheduleCount = count;
+            }
           }
         }
 
@@ -506,9 +642,12 @@ document.addEventListener('DOMContentLoaded', () => {
           const raw = (parsed && typeof parsed.expenses === 'object' && parsed.expenses !== null)
             ? parsed.expenses
             : null;
-          if (raw && isValidSchedulesShape(raw)) {
-            importedExpenses = raw;
-            expenseCount = Object.values(raw).reduce((sum, arr) => sum + arr.length, 0);
+          if (raw) {
+            const { data, count } = sanitizeDateKeyedMap(raw, sanitizeExpenseEntry);
+            if (count > 0) {
+              importedExpenses = data;
+              expenseCount = count;
+            }
           }
         }
 
@@ -567,11 +706,25 @@ document.addEventListener('DOMContentLoaded', () => {
   const scheduleDateStart = document.getElementById('schedule-date-start');
   const scheduleDateEnd = document.getElementById('schedule-date-end');
   const scheduleDate = document.getElementById('schedule-date');
-  
+  const scheduleDateLabel = document.getElementById('schedule-date-label');
+
+  // 繰り返しトグル要素
+  const checkboxRepeat = document.getElementById('checkbox-repeat');
+  const repeatInput = document.getElementById('repeat-input');
+  const scheduleRepeatType = document.getElementById('schedule-repeat-type');
+  const scheduleRepeatEnd = document.getElementById('schedule-repeat-end');
+
   // 複数日トグルの切り替え制御
   checkboxMultiDay.addEventListener('change', () => {
     const isMultiDay = checkboxMultiDay.checked;
     if (isMultiDay) {
+      // 複数日と繰り返しは同時に使えないため、繰り返しをオフにする
+      if (checkboxRepeat.checked) {
+        checkboxRepeat.checked = false;
+        repeatInput.style.display = 'none';
+        scheduleRepeatEnd.removeAttribute('required');
+        scheduleDateLabel.innerHTML = '日付 <span class="required">*</span>';
+      }
       singleDayInput.style.display = 'none';
       multiDayInput.style.display = '';
       scheduleDate.removeAttribute('required');
@@ -594,6 +747,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // 繰り返しトグルの切り替え制御
+  checkboxRepeat.addEventListener('change', () => {
+    const isRepeat = checkboxRepeat.checked;
+    if (isRepeat) {
+      // 複数日と繰り返しは同時に使えないため、複数日をオフにする
+      if (checkboxMultiDay.checked) {
+        checkboxMultiDay.checked = false;
+        singleDayInput.style.display = '';
+        multiDayInput.style.display = 'none';
+        scheduleDate.setAttribute('required', '');
+        scheduleDateStart.removeAttribute('required');
+        scheduleDateEnd.removeAttribute('required');
+      }
+      scheduleDateLabel.innerHTML = '開始日 <span class="required">*</span>';
+      repeatInput.style.display = '';
+      scheduleRepeatEnd.setAttribute('required', '');
+    } else {
+      scheduleDateLabel.innerHTML = '日付 <span class="required">*</span>';
+      repeatInput.style.display = 'none';
+      scheduleRepeatEnd.removeAttribute('required');
+    }
+  });
+
   // 手動追加モーダルの表示制御
   btnAddSchedule.addEventListener('click', () => {
     // 選択された日付をフォームの初期値にする
@@ -613,7 +789,14 @@ document.addEventListener('DOMContentLoaded', () => {
     scheduleDate.setAttribute('required', '');
     scheduleDateStart.removeAttribute('required');
     scheduleDateEnd.removeAttribute('required');
-    
+    // 繰り返しトグルをリセット
+    checkboxRepeat.checked = false;
+    repeatInput.style.display = 'none';
+    scheduleRepeatEnd.removeAttribute('required');
+    scheduleRepeatType.value = 'weekly';
+    scheduleRepeatEnd.value = '';
+    scheduleDateLabel.innerHTML = '日付 <span class="required">*</span>';
+
     openModal(modalAddSchedule);
   });
   
@@ -626,10 +809,84 @@ document.addEventListener('DOMContentLoaded', () => {
     const endTime = document.getElementById('schedule-end-time').value;
     const description = document.getElementById('schedule-description').value.trim();
     const isMultiDay = checkboxMultiDay.checked;
-    
+    const isRepeat = checkboxRepeat.checked;
+
     if (!title) return;
-    
-    if (isMultiDay) {
+
+    if (isRepeat) {
+      // 繰り返しモード
+      const startDateStr = scheduleDate.value;
+      const repeatType = scheduleRepeatType.value;
+      const repeatEndStr = scheduleRepeatEnd.value;
+
+      if (!startDateStr) {
+        showToast('開始日を入力してください', 'error');
+        return;
+      }
+      if (!repeatEndStr) {
+        showToast('繰り返しの終了日を入力してください', 'error');
+        return;
+      }
+
+      const start = new Date(startDateStr);
+      const repeatEnd = new Date(repeatEndStr);
+
+      if (repeatEnd < start) {
+        showToast('繰り返しの終了日は開始日以降の日付にしてください', 'error');
+        return;
+      }
+
+      const diffDays = Math.round((repeatEnd - start) / (1000 * 60 * 60 * 24));
+      if (diffDays > 730) {
+        showToast('繰り返しの期間は2年以内にしてください', 'error');
+        return;
+      }
+
+      // 開始日から終了日まで、指定した間隔で発生日を列挙
+      const occurrences = [];
+      const current = new Date(start);
+      while (current <= repeatEnd) {
+        occurrences.push(new Date(current));
+        if (repeatType === 'daily') current.setDate(current.getDate() + 1);
+        else if (repeatType === 'monthly') current.setMonth(current.getMonth() + 1);
+        else current.setDate(current.getDate() + 7); // weekly（既定）
+      }
+
+      if (occurrences.length > 200) {
+        showToast('繰り返しの回数が多すぎます（200回まで）', 'error');
+        return;
+      }
+
+      const repeatId = 'r-' + Date.now().toString();
+      occurrences.forEach(occDate => {
+        const dStr = getFormattedDate(occDate);
+        const newEvent = {
+          id: Date.now().toString() + '-' + dStr,
+          repeatId,
+          repeatType,
+          title,
+          startTime: startTime || null,
+          endTime: endTime || null,
+          description: description || null
+        };
+
+        if (!schedules[dStr]) {
+          schedules[dStr] = [];
+        }
+        schedules[dStr].push(newEvent);
+      });
+
+      saveSchedules();
+      closeModal(modalAddSchedule);
+
+      selectedDate = new Date(startDateStr);
+      currentMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+
+      renderCalendar();
+      renderScheduleList();
+      showToast(`${occurrences.length}件の繰り返し予定を追加しました！`, 'success');
+
+    } else if (isMultiDay) {
       // 複数日モード
       const startDateStr = scheduleDateStart.value;
       const endDateStr = scheduleDateEnd.value;
@@ -1683,7 +1940,7 @@ JSONスキーマ（配列。取引が1件のみでも要素1件の配列にす�
   }
   
   function escapeHTML(str) {
-    return str
+    return String(str ?? '')
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')

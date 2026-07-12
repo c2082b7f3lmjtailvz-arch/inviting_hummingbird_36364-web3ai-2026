@@ -681,6 +681,14 @@ input, textarea, button {
   margin-bottom: 0.25rem;
 }
 
+.schedule-repeat-icon {
+  width: 0.85rem;
+  height: 0.85rem;
+  margin-right: 0.35rem;
+  color: var(--secondary);
+  vertical-align: -1px;
+}
+
 .schedule-desc {
   font-size: 0.8rem;
   color: var(--text-muted);
@@ -854,6 +862,17 @@ input, textarea, button {
 .btn-outline:hover {
   background: rgba(255, 255, 255, 0.05);
   border-color: rgba(255, 255, 255, 0.25);
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.3);
+}
+
+.btn-danger:hover {
+  background: #dc2626;
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5);
 }
 
 .btn-glow {
