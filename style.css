@@ -14,7 +14,7 @@
   
   --text-main: #f1f5f9;
   --text-muted: #94a3b8;
-  --text-dark: #64748b;
+  --text-dark: #7c8bab;
   
   --primary: #6366f1;
   --primary-glow: rgba(99, 102, 241, 0.35);
@@ -1187,7 +1187,7 @@ input:checked + .slider:before {
 }
 
 .modal-content.max-w-lg {
-  max-w: 600px;
+  max-width: 600px;
 }
 
 .modal-header {
@@ -1419,5 +1419,64 @@ input:checked + .slider:before {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* ==========================================================================
+   Mobile Visibility Improvements
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  /* 余白を詰めてコンテンツの表示幅を確保 */
+  .app-container {
+    padding: 1rem;
+    gap: 1.25rem;
+  }
+
+  .card {
+    padding: 1.15rem;
+  }
+
+  .modal-header,
+  .modal-body,
+  .modal-footer {
+    padding: 1rem;
+  }
+
+  /* ヘッダーのボタンはアイコンのみにして折り返しの乱れを防ぐ（title属性でラベルは維持） */
+  .header-actions .btn span {
+    display: none;
+  }
+
+  .header-actions .btn {
+    padding: 0.65rem;
+  }
+
+  /* カレンダーのマス目を狭い画面でも見やすく */
+  .calendar-days {
+    gap: 4px;
+  }
+
+  .day-cell {
+    padding: 0.35rem;
+  }
+
+  .day-number {
+    font-size: 0.95rem;
+  }
+
+  .event-badge {
+    font-size: 0.72rem;
+    padding: 2px 4px;
+  }
+
+  .cell-events {
+    max-height: 46px;
+  }
+
+  /* タップ領域を広げる */
+  .btn-icon {
+    width: 2.5rem;
+    height: 2.5rem;
   }
 }
